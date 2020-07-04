@@ -1,0 +1,193 @@
+
+#include "stm32f10x.h"
+#include "core_cm3.h"
+#include "misc.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x_usart.h"
+#include "stm32f10x_exti.h"
+#include "stm32f10x_adc.h"
+#include "stm32f10x_tim.h"
+#include "lcd.h"
+#include "touch.h"
+
+/* function prototype */
+void RCC_Configure(void);
+void GPIO_Configure(void);
+
+void NVIC_Configure(void);
+
+
+
+int ledstate1=0;
+int ledstate2=0;
+uint16_t posX = 0, posY = 0, pixelX = 0, pixelY = 0;
+int led_mode = 0;
+unsigned int timer =0;
+int onoff = 0;
+//---------------------------------------------------------------------------------------------------
+
+void RCC_Configure(void)
+{
+   // TODO: Enable the APB2 peripheral clock using the function 'RCC_APB2PeriphClockCmd'
+   RCC_APB2PeriphClockCmd(RCC_APB2ENR_AFIOEN, ENABLE);
+   RCC_APB2PeriphClockCmd(RCC_APB2ENR_IOPAEN, ENABLE);
+
+   RCC_APB2PeriphClockCmd(RCC_APB2ENR_IOPDEN, ENABLE);
+   RCC_APB2PeriphClockCmd(RCC_APB2ENR_USART1EN, ENABLE);
+
+   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+}
+
+void GPIO_Configure(void)
+{
+
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+   // TODO: Initialize the GPIO pins using the structure 'GPIO_InitTypeDef' and the function 'GPIO_Init'
+
+
+    /* button pin setting */
+
+    /* LED pin setting*/
+   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2 | GPIO_Pin_3 ;
+   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+   GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+}
+
+void timerInit(){
+    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+    TIM_TimeBaseStructure.TIM_Period=1000-1; // 1kHz == 1ms
+    TIM_TimeBaseStructure.TIM_Prescaler= 7200 - 1;
+
+    TIM_TimeBaseStructure.TIM_ClockDivision=0;
+    TIM_TimeBaseStructure.TIM_CounterMode=TIM_CounterMode_Up;
+    TIM_TimeBaseInit(TIM2,&TIM_TimeBaseStructure);
+
+    TIM_ARRPreloadConfig(TIM2, ENABLE);
+    TIM_Cmd(TIM2,ENABLE);
+    TIM_ITConfig(TIM2,TIM_IT_Update, ENABLE); // interrupt enable
+
+}
+
+
+
+
+void NVIC_Configure(void) {
+    NVIC_InitTypeDef NVIC_InitStructure;
+
+ // TIMER INTERRUPT
+    //timer interrupt register
+    NVIC_InitStructure.NVIC_IRQChannel=TIM2_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
+
+}
+void TIM2_IRQHandler(void)
+{
+    if(TIM_GetITStatus(TIM2,TIM_IT_Update) != RESET)
+    {
+
+    	if (led_mode == 1){
+    	timer++;
+
+
+    	   if (ledstate1 == 0) {
+    		   GPIO_SetBits(GPIOD, GPIO_Pin_2);
+    	       ledstate1 =1;
+    	   }
+    	   else{
+    		   GPIO_ResetBits(GPIOD, GPIO_Pin_2);
+    		   ledstate1 = 0;
+    	   }
+
+    	   if(timer %5 == 0){
+    	   if (ledstate2 == 0) {
+    	   	   GPIO_SetBits(GPIOD, GPIO_Pin_3);
+    	        ledstate2 =1;
+
+    	      }
+    	      else{
+    	   	   GPIO_ResetBits(GPIOD, GPIO_Pin_3);
+    	   	   ledstate2 = 0;
+    	      }
+
+    	   }
+    	}
+        TIM_ClearITPendingBit(TIM2, TIM_IT_Update); // Clear the interrupt flag
+    }
+}
+
+void LED_WAVE() {
+
+   if (ledstate1 == 0) {
+	   GPIO_SetBits(GPIOD, GPIO_Pin_2);
+       ledstate1 =1;
+   }
+   else{
+	   GPIO_ResetBits(GPIOD, GPIO_Pin_2);
+	   ledstate1 = 0;
+   }
+
+   if(timer %5 == 0){
+   if (ledstate2 == 0) {
+   	   GPIO_SetBits(GPIOD, GPIO_Pin_3);
+        ledstate2 =1;
+
+      }
+      else{
+   	   GPIO_ResetBits(GPIOD, GPIO_Pin_3);
+   	   ledstate2 = 0;
+      }
+
+    }
+}
+
+
+
+
+int main(void)
+{
+
+
+    SystemInit();
+    RCC_Configure();
+    GPIO_Configure();
+    timerInit();
+    NVIC_Configure();
+
+    LCD_Init();
+    Touch_Configuration();
+    Touch_Adjust();
+    LCD_Clear(WHITE);
+
+    LCD_ShowString(20, 20, "THU_Team07", BLACK, WHITE);
+    LCD_ShowString(60, 20, "LED", BLACK, WHITE);
+    LCD_DrawRectangle(40, 40, 80, 80);
+    LCD_ShowString(50, 60, "ON", BLACK, WHITE);
+    LCD_DrawRectangle(90, 40, 130, 80);
+    LCD_ShowString(100, 60, "OFF", BLACK, WHITE);
+
+    while (1) {
+
+         Touch_GetXY(&posX, &posY, 0);
+         Convert_Pos(posX, posY, &pixelX, &pixelY);
+
+         if ((pixelX > 40) && (pixelX < 80) && (pixelY > 40) && (pixelY < 80)){
+            led_mode = 1;   //led on
+            LCD_ShowString(60, 20, "LEDsssssssssss", BLACK, WHITE);
+
+         }
+         else if ((pixelX > 90) && (pixelX < 130) && (pixelY > 40) && (pixelY < 80)) {
+            led_mode = 0;   //led off
+            LCD_ShowString(60, 20, "LEDxxxxxxxxxx", BLACK, WHITE);
+         }
+
+      }
+
+    return 0;
+}

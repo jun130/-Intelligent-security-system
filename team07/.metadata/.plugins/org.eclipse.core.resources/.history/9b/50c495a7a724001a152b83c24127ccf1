@@ -1,0 +1,111 @@
+#include "stm32f10x.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x_gpio.h"
+
+int keypad_input[10]= {-1, -1, -1, -1, -1, -1, -1 ,-1 ,-1, -1 };
+int password[10] = {1, 2, 3, 4, -1, -1, -1, -1, -1, -1};
+int flag = 0;
+int fail_counter = 0;
+
+void RCC_Configure(void) {
+    RCC_APB2PeriphClockCmd(RCC_APB2ENR_AFIOEN, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2ENR_IOPAEN, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2ENR_IOPDEN, ENABLE);
+
+    // led 테스트용
+}
+
+void GPIO_Configure(void) {
+    // 4개는 output, 4개는 input
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    // input
+    GPIO_InitStructure.GPIO_Pin = (GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3);      // 이렇게 선언해도 되는건지는 잘 모르겠음
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+    // pull-down down일 때 low
+    // GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // output
+    GPIO_InitStructure.GPIO_Pin = (GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7);
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
+    // push pull
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // led 1 테스트용
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2|GPIO_Pin_3|GPIO_Pin_4|GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOD, &GPIO_InitStructure);
+}
+
+void delay(void) {
+   int i;
+   for (i = 0; i < 50000; i++) {}
+}
+
+int main(void) {
+   int i=0;
+    int value = -1;
+    int password_index = -1;
+    int btn_state = 0;
+
+    RCC_Configure();
+    GPIO_Configure();
+
+    while (1) {
+      GPIO_ResetBits(GPIOA, GPIO_Pin_4);
+      GPIO_SetBits(GPIOA, GPIO_Pin_5);
+      GPIO_SetBits(GPIOA, GPIO_Pin_6);
+      GPIO_SetBits(GPIOA, GPIO_Pin_7);
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0)) { value = 'D'; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1)) { value = '#'; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_2)) { value = 0; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_3)) { value = '*'; }
+
+      GPIO_SetBits(GPIOA, GPIO_Pin_4);
+      GPIO_ResetBits(GPIOA, GPIO_Pin_5);
+      GPIO_SetBits(GPIOA, GPIO_Pin_6);
+      GPIO_SetBits(GPIOA, GPIO_Pin_7);
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0)) { value = 'C'; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1)) { value = 9; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_2)) { value = 8; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_3)) { value = 7; }
+
+      GPIO_SetBits(GPIOA, GPIO_Pin_4);
+      GPIO_SetBits(GPIOA, GPIO_Pin_5);
+      GPIO_ResetBits(GPIOA, GPIO_Pin_6);
+      GPIO_SetBits(GPIOA, GPIO_Pin_7);
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0)) { value = 'B'; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1)) { value = 6; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_2)) { value = 5; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_3)) { value = 4; }
+
+      GPIO_SetBits(GPIOA, GPIO_Pin_4);
+      GPIO_SetBits(GPIOA, GPIO_Pin_5);
+      GPIO_SetBits(GPIOA, GPIO_Pin_6);
+      GPIO_ResetBits(GPIOA, GPIO_Pin_7);
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0)) { value = 'A'; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1)) { value = 3; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_2)) { value = 2; }
+      if (!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_3)) { value = 1; }
+
+
+
+      if (value == 2) {
+                  GPIO_SetBits(GPIOD, GPIO_Pin_2);
+              } else {
+                  GPIO_ResetBits(GPIOD, GPIO_Pin_2);
+              }
+
+      delay();
+      value = -1;
+
+    }
+
+
+
+    return 0;
+}
